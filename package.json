@@ -1,0 +1,22 @@
+{
+  "name": "amani-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Separated Amani unified API for amani-web and amaniadmin.",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
+    "worker:contracts": "node src/workers/contract-delivery.worker.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.103.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "nodemailer": "^9.0.6"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
