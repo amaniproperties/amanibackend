@@ -4,6 +4,24 @@ import { ok, created, fail } from '../utils/http.js';
 const MAX_LIMIT = 500;
 
 const resources = {
+  'listing-enquiries': {
+    table: 'property_listing_enquiries',
+    label: 'Property Listing Enquiries',
+    titleField: 'owner_name',
+    search: ['owner_name','phone','email','details','status','source'],
+    writable: ['owner_name','phone','email','property_category_id','location_id','stories','details','status','source','admin_notes'],
+    required: ['owner_name','phone','details'],
+    sort: 'created_at'
+  },
+  'contact-messages': {
+    table: 'contact_messages',
+    label: 'Contact Messages',
+    titleField: 'name',
+    search: ['name','email','phone','subject','message','status','source'],
+    writable: ['name','email','phone','subject','message','status','source','admin_notes'],
+    required: ['name','message'],
+    sort: 'created_at'
+  },
   properties: {
     table: 'properties',
     label: 'Properties / Listings',

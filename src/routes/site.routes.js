@@ -13,7 +13,9 @@ import {
   getPropertyTabs,
   getNavigation,
   getFooter,
-  createPropertyVisitRequest
+  createPropertyVisitRequest,
+  createPropertyListingEnquiry,
+  createContactMessage
 } from '../controllers/site.controller.js';
 
 const router = Router();
@@ -21,6 +23,8 @@ const router = Router();
 router.get('/navigation', getNavigation);
 router.get('/footer', getFooter);
 router.post('/book-visit', createPropertyVisitRequest);
+router.post('/listing-enquiries', createPropertyListingEnquiry);
+router.post('/contact-messages', createContactMessage);
 router.get('/property-categories', getPropertyCategories);
 router.get('/properties', getProperties);
 router.get('/properties-with-availability', getPropertiesWithAvailability);

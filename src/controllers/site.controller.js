@@ -4,6 +4,24 @@ import { sendPropertyVisitRequest } from '../services/booking-email.service.js';
 
 const arr = (value) => Array.isArray(value) ? value : [];
 
+function cleanText(value, max = 3000) {
+  return String(value ?? '').trim().slice(0, max);
+}
+function cleanEmail(value) {
+  const email = cleanText(value, 254).toLowerCase();
+  return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
+}
+function cleanPhone(value) {
+  return cleanText(value, 30).replace(/[^\d+()\-\s]/g, '');
+}
+async function idExists(table, id) {
+  if (!id) return false;
+  const { data, error } = await supabaseAdmin.from(table).select('id').eq('id', id).limit(1).maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+
 function normalizeImagePath(path, propertyId = '') {
   if (!path) return '';
   const raw = String(path).trim();
@@ -57,26 +75,9 @@ function normalizeStatus(value) {
 }
 
 function normalizeUnit(unit) {
-  const status = normalizeStatus(unit.status);
-  const tenancies = arr(unit.unit_tenancies).filter(t => ['occupied','reserved','active'].includes(normalizeStatus(t.status)));
-  const noticeDates = tenancies.flatMap(t => arr(t.tenancy_notices)
-    .filter(n => normalizeStatus(n.status) === 'active')
-    .flatMap(n => [n.vacate_date, n.effective_date, n.notice_date]));
-  const moveDates = tenancies.flatMap(t => [t.intended_move_out_date,t.move_out_date,t.lease_end_date,t.contract_end_date]);
-  const nextDate = earliest([unit.availability_date, ...noticeDates, ...moveDates]);
-  const availableNow = status === 'vacant';
-  const comingSoon = status === 'occupied' && !!nextDate;
-  return {
-    ...unit,
-    id: unit.id,
-    unit_id: unit.id,
-    unit_name: unit.unit_code || unit.unit_title || unit.unit_name || 'Unit',
-    thumbnail: normalizeImagePath(unit.thumbnail, unit.property_id),
-    public_availability_status: availableNow ? 'vacant' : comingSoon ? 'coming_soon' : (status || 'not_available'),
-    public_available_from: availableNow ? '' : nextDate,
-    is_available_now: availableNow,
-    is_coming_soon: comingSoon
-  };
+  return normalizeUnitAvailability(unit, {
+    normalizeImagePath
+  });
 }
 
 function availabilitySummary(units) {
@@ -110,6 +111,9 @@ async function publicUnits(propertyId = null) {
     unit_tenancies (
       id,status,intended_move_out_date,move_out_date,lease_end_date,contract_end_date,
       tenancy_notices (id,status,notice_type,notice_date,effective_date,vacate_date)
+    ),
+    unit_reservations (
+      id,status,reservation_expiry_date,expected_move_in_date
     )
   `).eq('available_for_public', true).eq('is_listed', true).eq('is_active', true).order('sort_order', { ascending: true }).order('unit_code', { ascending: true });
   if (propertyId) query = query.eq('property_id', propertyId);
@@ -426,4 +430,76 @@ export async function createPropertyVisitRequest(req, res) {
     const result = await sendPropertyVisitRequest({ to: contact.email, booking: payload, property, unit });
     return created(res, { submitted: true, delivery: result.provider, property_id: property.id, unit_id: unit.id });
   } catch (error) { return fail(res, 500, 'Failed to send Amani property visit request', error.message); }
+}
+
+export async function createPropertyListingEnquiry(req, res) {
+  try {
+    const body = req.body || {};
+    const ownerName = cleanText(body.owner_name, 120);
+    const phone = cleanPhone(body.phone);
+    const email = cleanEmail(body.email);
+    const propertyCategoryId = cleanText(body.property_category_id, 80);
+    const locationId = cleanText(body.location_id, 80);
+    const details = cleanText(body.details, 3000);
+    const storiesRaw = Number(body.stories);
+    const stories = Number.isInteger(storiesRaw) && storiesRaw >= 1 && storiesRaw <= 200 ? storiesRaw : null;
+
+    if (ownerName.length < 2) return fail(res, 400, 'Your name is required');
+    if (phone.length < 7) return fail(res, 400, 'A valid phone number is required');
+    if (body.email && !email) return fail(res, 400, 'Enter a valid email address');
+    if (!propertyCategoryId || !(await idExists('property_categories', propertyCategoryId))) return fail(res, 400, 'Select a valid property type');
+    if (!locationId || !(await idExists('locations', locationId))) return fail(res, 400, 'Select a valid location');
+    if (!stories) return fail(res, 400, 'Select the number of stories');
+    if (details.length < 10) return fail(res, 400, 'Please provide a brief property description');
+
+    const { data, error } = await supabaseAdmin
+      .from('property_listing_enquiries')
+      .insert({
+        owner_name: ownerName,
+        phone,
+        email: email || null,
+        property_category_id: propertyCategoryId,
+        location_id: locationId,
+        stories,
+        details,
+        status: 'new',
+        source: 'website_nav_cta'
+      })
+      .select('id,status,created_at')
+      .single();
+    if (error) throw error;
+    return created(res, data);
+  } catch (error) {
+    return fail(res, 500, 'Failed to submit property listing enquiry', error.message);
+  }
+}
+
+export async function createContactMessage(req, res) {
+  try {
+    const body = req.body || {};
+    const name = cleanText(body.name, 120);
+    const email = cleanEmail(body.email);
+    const phone = cleanPhone(body.phone);
+    const subject = cleanText(body.subject, 180);
+    const message = cleanText(body.message, 3000);
+
+    if (name.length < 2) return fail(res, 400, 'Your name is required');
+    if (!email && !phone) return fail(res, 400, 'Provide an email address or phone number');
+    if (body.email && !email) return fail(res, 400, 'Enter a valid email address');
+    if (message.length < 10) return fail(res, 400, 'Please enter a message');
+
+    const { data, error } = await supabaseAdmin
+      .from('contact_messages')
+      .insert({
+        name, email: email || null, phone: phone || null,
+        subject: subject || null, message,
+        status: 'new', source: 'contact_page'
+      })
+      .select('id,status,created_at')
+      .single();
+    if (error) throw error;
+    return created(res, data);
+  } catch (error) {
+    return fail(res, 500, 'Failed to send contact message', error.message);
+  }
 }

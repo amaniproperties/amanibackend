@@ -38,7 +38,9 @@ export const env = {
   port: Number(process.env.PORT || 4000),
 
   supabaseUrl: required('SUPABASE_URL'),
-  supabaseServiceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY'),
+  // Supabase's current server credential is SUPABASE_SECRET_KEY (sb_secret_...).
+  // Keep legacy SUPABASE_SERVICE_ROLE_KEY support for existing deployments.
+  supabaseServiceRoleKey: process.env.SUPABASE_SECRET_KEY || required('SUPABASE_SERVICE_ROLE_KEY'),
   adminApiKey: optional('ADMIN_API_KEY'),
 
   appPublicBaseUrl: optional('APP_PUBLIC_BASE_URL', 'http://127.0.0.1:8080'),

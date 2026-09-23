@@ -52,6 +52,8 @@ router.get('/dashboard/dashboard-3', getLiveAnalytics);
 router.get('/dashboard/dashboard-4', getLiveAnalytics);
 
 // Stable resource aliases kept for existing callers.
+router.use('/listing-enquiries', resourceRouter('listing-enquiries'));
+router.use('/contact-messages', resourceRouter('contact-messages'));
 router.use('/properties', resourceRouter('properties'));
 router.use('/units', resourceRouter('units'));
 router.use('/clients', resourceRouter('clients'));

@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "node --watch src/app.js",
-    "worker:contracts": "node src/workers/contract-delivery.worker.js"
+    "worker:contracts": "node src/workers/contract-delivery.worker.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
