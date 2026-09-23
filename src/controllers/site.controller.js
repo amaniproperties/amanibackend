@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../db/supabase-admin.js';
 import { ok, created, fail } from '../utils/http.js';
 import { sendPropertyVisitRequest } from '../services/booking-email.service.js';
+import { normalizeUnitAvailability } from '../utils/unit-availability.js';
 
 const arr = (value) => Array.isArray(value) ? value : [];
 
